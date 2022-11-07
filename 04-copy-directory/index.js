@@ -1,28 +1,40 @@
-const { pipeline } = require("stream/promises");
-const { readdir, access, mkdir } = require('fs/promises');
-const { createReadStream, createWriteStream, constants } = require('fs');
-const { join } = require("path");
+const path = require('path');
+const fs = require('fs');
+const { mkdir, rm, readdir, copyFile } = require('fs/promises');
 
-const source = join(__dirname, 'files');
-const destination = join(__dirname, 'files-copy');
+const copyDir = (sourceFolder, destinationFolder) => {
 
-const copyFolder = async (sourseFolder, destinationDolder) => {
-    const folderContent = await readdir(sourseFolder);
+  const copy = () => {
+    const files = readdir(path.join(sourceFolder));
 
-    for (const item of folderContent) {
-        const sourcePath = join(sourseFolder, item);
-        const destinationPath = join(destinationDolder, item);
-        if (await access(destinationDolder, constants.R_OK | constants.W_OK)) {
-            const rs = createReadStream(sourcePath);
-            const ws = createWriteStream(destinationPath, {flags: 'w+'});
-            await pipeline(rs, ws);
+    files.then(resolve => resolve.forEach(item => {
+      fs.stat(path.join(sourceFolder, item), (err, data) => {
+        if (err) throw err;
+
+        if (data.isDirectory()) {
+          copyDir(path.join(sourceFolder, item), path.join(destinationFolder, item));
         } else {
-            await mkdir(destinationDolder);
-            const rs = createReadStream(sourcePath);
-            const ws = createWriteStream(destinationPath, {flags: 'w+'});
-            await pipeline(rs, ws);
+          copyFile(path.join(sourceFolder, item), path.join(destinationFolder, item));
         }
-    }
+      });
+    }));
+  }
+
+  mkdir(path.join(destinationFolder), {recursive: true})
+    .then(resolve => {
+      if (!resolve) {
+        rm(path.join(destinationFolder), {recursive: true})
+          .then(() => {
+            mkdir(path.join(destinationFolder));
+            copy();
+          });
+      } else {
+        copy();
+      }
+    });
 }
 
-copyFolder(source, destination);
+const source = path.join(__dirname, 'files');
+const destination = path.join(__dirname, 'files-copy');
+
+copyDir(source, destination);

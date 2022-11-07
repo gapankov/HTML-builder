@@ -1,5 +1,5 @@
 const { pipeline } = require("stream/promises");
-const { readdir, access } = require('fs/promises');
+const { readdir, access, mkdir } = require('fs/promises');
 const { createReadStream, createWriteStream, constants } = require('fs');
 const { join } = require("path");
 
@@ -17,7 +17,12 @@ const copyFolder = async (sourseFolder, destinationDolder) => {
             const ws = createWriteStream(destinationPath, {flags: 'w+'});
             await pipeline(rs, ws);
         } else {
-
+            await mkdir(destinationDolder);
+            const rs = createReadStream(sourcePath);
+            const ws = createWriteStream(destinationPath, {flags: 'w+'});
+            await pipeline(rs, ws);
         }
     }
 }
+
+copyFolder(source, destination);
